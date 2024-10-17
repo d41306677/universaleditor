@@ -1,0 +1,26 @@
+{
+  "logo": {
+    "link": "https://example.com",
+    "image": "https://example.com/logo.png",
+    "alt": "Company Logo"
+  },
+  "menuItems": [
+    {
+      "text": "Home",
+      "link": "#"
+    },
+    {
+      "text": "Degrees & Programs",
+      "link": "#",
+      "subMenu": [
+        { "text": "Undergraduate", "link": "#" },
+        { "text": "Postgraduate", "link": "#" },
+        { "text": "Diploma", "link": "#" }
+      ]
+    },
+    {
+      "text": "Tuition & Financial Aid",
+      "link": "#"
+    }
+  ]
+}
