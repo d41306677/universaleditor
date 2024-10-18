@@ -1,166 +1,164 @@
-import { getMetadata } from '../../scripts/aem.js';
-import { loadFragment } from '../fragment/fragment.js';
+import { h, render, Component } from 'https://esm.sh/preact';
+import htm from 'https://esm.sh/htm';
 
-// media query match that indicates mobile/tablet width
-const isDesktop = window.matchMedia('(min-width: 900px)');
+const html = htm.bind(h);
 
-function closeOnEscape(e) {
-  if (e.code === 'Escape') {
-    const nav = document.getElementById('nav');
-    const navSections = nav.querySelector('.nav-sections');
-    const navSectionExpanded = navSections.querySelector('[aria-expanded="true"]');
-    if (navSectionExpanded && isDesktop.matches) {
-      // eslint-disable-next-line no-use-before-define
-      toggleAllNavSections(navSections);
-      navSectionExpanded.focus();
-    } else if (!isDesktop.matches) {
-      // eslint-disable-next-line no-use-before-define
-      toggleMenu(nav, navSections);
-      nav.querySelector('button').focus();
-    }
-  }
-}
+class DynamicHeader extends Component {
+  state = {
+    menuItems: this.props.menuItems || [],
+    logo: this.props.logo || {},
+    isMobileMenuOpen: false, // State to track mobile menu visibility
+  };
 
-function closeOnFocusLost(e) {
-  const nav = e.currentTarget;
-  if (!nav.contains(e.relatedTarget)) {
-    const navSections = nav.querySelector('.nav-sections');
-    const navSectionExpanded = navSections.querySelector('[aria-expanded="true"]');
-    if (navSectionExpanded && isDesktop.matches) {
-      // eslint-disable-next-line no-use-before-define
-      toggleAllNavSections(navSections, false);
-    } else if (!isDesktop.matches) {
-      // eslint-disable-next-line no-use-before-define
-      toggleMenu(nav, navSections, false);
-    }
-  }
-}
+  // Function to toggle the mobile menu
+  toggleMobileMenu = () => {
+    this.setState((prevState) => ({
+      isMobileMenuOpen: !prevState.isMobileMenuOpen,
+    }));
+  };
 
-function openOnKeydown(e) {
-  const focused = document.activeElement;
-  const isNavDrop = focused.className === 'nav-drop';
-  if (isNavDrop && (e.code === 'Enter' || e.code === 'Space')) {
-    const dropExpanded = focused.getAttribute('aria-expanded') === 'true';
-    // eslint-disable-next-line no-use-before-define
-    toggleAllNavSections(focused.closest('.nav-sections'));
-    focused.setAttribute('aria-expanded', dropExpanded ? 'false' : 'true');
-  }
-}
-
-function focusNavSection() {
-  document.activeElement.addEventListener('keydown', openOnKeydown);
-}
-
-/**
- * Toggles all nav sections
- * @param {Element} sections The container element
- * @param {Boolean} expanded Whether the element should be expanded or collapsed
- */
-function toggleAllNavSections(sections, expanded = false) {
-  sections.querySelectorAll('.nav-sections .default-content-wrapper > ul > li').forEach((section) => {
-    section.setAttribute('aria-expanded', expanded);
-  });
-}
-
-/**
- * Toggles the entire nav
- * @param {Element} nav The container element
- * @param {Element} navSections The nav sections within the container element
- * @param {*} forceExpanded Optional param to force nav expand behavior when not null
- */
-function toggleMenu(nav, navSections, forceExpanded = null) {
-  const expanded = forceExpanded !== null ? !forceExpanded : nav.getAttribute('aria-expanded') === 'true';
-  const button = nav.querySelector('.nav-hamburger button');
-  document.body.style.overflowY = (expanded || isDesktop.matches) ? '' : 'hidden';
-  nav.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-  toggleAllNavSections(navSections, expanded || isDesktop.matches ? 'false' : 'true');
-  button.setAttribute('aria-label', expanded ? 'Open navigation' : 'Close navigation');
-  // enable nav dropdown keyboard accessibility
-  const navDrops = navSections.querySelectorAll('.nav-drop');
-  if (isDesktop.matches) {
-    navDrops.forEach((drop) => {
-      if (!drop.hasAttribute('tabindex')) {
-        drop.setAttribute('tabindex', 0);
-        drop.addEventListener('focus', focusNavSection);
-      }
+  componentDidMount() {
+    // Event listeners for mobile menu toggle
+    const menuToggle = document.getElementById('menu-toggle');
+    const mobileMenu = document.getElementById('mobile-menu');
+    menuToggle.addEventListener('click', () => {
+      mobileMenu.classList.toggle('hidden');
     });
-  } else {
-    navDrops.forEach((drop) => {
-      drop.removeAttribute('tabindex');
-      drop.removeEventListener('focus', focusNavSection);
+
+    // Event listeners for submenu toggle
+    const submenuToggle = document.getElementById('submenu-toggle');
+    const mobileSubmenu = document.getElementById('mobile-submenu');
+    submenuToggle.addEventListener('click', () => {
+      mobileSubmenu.classList.toggle('hidden');
     });
-  }
 
-  // enable menu collapse on escape keypress
-  if (!expanded || isDesktop.matches) {
-    // collapse menu on escape press
-    window.addEventListener('keydown', closeOnEscape);
-    // collapse menu on focus lost
-    nav.addEventListener('focusout', closeOnFocusLost);
-  } else {
-    window.removeEventListener('keydown', closeOnEscape);
-    nav.removeEventListener('focusout', closeOnFocusLost);
-  }
-}
+    // Event listeners for tab functionality
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+    tabButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        // Remove active class from all buttons and hide all tab panes
+        tabButtons.forEach((button) => {
+          button.classList.remove('active-tab');
+        });
+        tabPanes.forEach((pane) => {
+          pane.classList.add('hidden');
+        });
 
-/**
- * loads and decorates the header, mainly the nav
- * @param {Element} block The header block element
- */
-export default async function decorate(block) {
-  // load nav as fragment
-  const navMeta = getMetadata('nav');
-  const navPath = navMeta ? new URL(navMeta, window.location).pathname : '/nav';
-  const fragment = await loadFragment(navPath);
-
-  // decorate nav DOM
-  block.textContent = '';
-  const nav = document.createElement('nav');
-  nav.id = 'nav';
-  while (fragment.firstElementChild) nav.append(fragment.firstElementChild);
-
-  const classes = ['brand', 'sections', 'tools'];
-  classes.forEach((c, i) => {
-    const section = nav.children[i];
-    if (section) section.classList.add(`nav-${c}`);
-  });
-
-  const navBrand = nav.querySelector('.nav-brand');
-  const brandLink = navBrand.querySelector('.button');
-  if (brandLink) {
-    brandLink.className = '';
-    brandLink.closest('.button-container').className = '';
-  }
-
-  const navSections = nav.querySelector('.nav-sections');
-  if (navSections) {
-    navSections.querySelectorAll(':scope .default-content-wrapper > ul > li').forEach((navSection) => {
-      if (navSection.querySelector('ul')) navSection.classList.add('nav-drop');
-      navSection.addEventListener('click', () => {
-        if (isDesktop.matches) {
-          const expanded = navSection.getAttribute('aria-expanded') === 'true';
-          toggleAllNavSections(navSections);
-          navSection.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        // Add active class to the clicked button and show the corresponding tab pane
+        btn.classList.add('active-tab');
+        const targetPane = document.getElementById(btn.dataset.target);
+        if (targetPane) {
+          targetPane.classList.remove('hidden');
         }
       });
     });
   }
 
-  // hamburger for mobile
-  const hamburger = document.createElement('div');
-  hamburger.classList.add('nav-hamburger');
-  hamburger.innerHTML = `<button type="button" aria-controls="nav" aria-label="Open navigation">
-      <span class="nav-hamburger-icon"></span>
-    </button>`;
-  hamburger.addEventListener('click', () => toggleMenu(nav, navSections));
-  nav.prepend(hamburger);
-  nav.setAttribute('aria-expanded', 'false');
-  // prevent mobile nav behavior on window resize
-  toggleMenu(nav, navSections, isDesktop.matches);
-  isDesktop.addEventListener('change', () => toggleMenu(nav, navSections, isDesktop.matches));
+  render() {
+    const { menuItems, logo, isMobileMenuOpen } = this.state;
 
-  const navWrapper = document.createElement('div');
-  navWrapper.className = 'nav-wrapper';
-  navWrapper.append(nav);
-  block.append(navWrapper);
+    if (!logo.link || !logo.image) {
+      return html`<div>Loading...</div>`;
+    }
+
+    return html`
+      <header class="bg-[#373737] shadow-md">
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center py-4">
+            <!-- Logo -->
+            <div class="flex-shrink-0">
+              <a href=${logo.link} class="text-2xl font-bold text-white">
+                <img src=${logo.image} alt=${logo.alt || 'Logo'} class="h-8" />
+              </a>
+            </div>
+
+            <!-- Menu Links for larger screens -->
+            <div class="hidden md:flex space-x-5 ml-8">
+              ${menuItems.map((item) => html`
+                <div class="relative group" key=${item.text}>
+                  <a href=${item.link} class="text-white hover:text-gray-200">
+                    ${item.text}
+                  </a>
+                  ${item.subMenu ? html`
+                    <div class="relative">
+                      <button class="text-white hover:text-gray-200 focus:outline-none flex items-center">
+                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                      </button>
+                      <div class="submenu absolute left-0 bg-white shadow-lg rounded-lg py-2 w-48 z-10">
+                        ${item.subMenu.map((subItem) => html`
+                          <a href=${subItem.link} class="block px-4 py-2 text-gray-700 hover:bg-gray-100" key=${subItem.text}>
+                            ${subItem.text}
+                          </a>
+                        `)}
+                      </div>
+                    </div>
+                  ` : ''}
+                </div>
+              `)}
+            </div>
+
+            <!-- Hamburger Menu Button for mobile view -->
+            <div class="md:hidden ml-auto">
+              <button
+                id="menu-toggle"
+                class="text-white hover:text-gray-200 focus:outline-none"
+                onClick=${this.toggleMobileMenu}
+              >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Mobile Menu -->
+          <div id="mobile-menu" class=${isMobileMenuOpen ? '' : 'hidden'}>
+            ${menuItems.map((item) => html`
+              <a href=${item.link} class="block px-4 py-2 text-white hover:bg-gray-200" key=${item.text}>
+                ${item.text}
+              </a>
+              ${item.subMenu ? html`
+                <div class="relative">
+                  <button class="block w-full text-left px-4 py-2 text-white hover:bg-gray-200" id="submenu-toggle">
+                    ${item.text}
+                    <svg class="w-4 h-4 inline-block ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                  </button>
+                  <div id="mobile-submenu" class="ml-4 hidden">
+                    ${item.subMenu.map((subItem) => html`
+                      <a href=${subItem.link} class="block px-4 py-2 text-gray-700 hover:bg-gray-100" key=${subItem.text}>
+                        ${subItem.text}
+                      </a>
+                    `)}
+                  </div>
+                </div>
+              ` : ''}
+            `)}
+          </div>
+        </nav>
+      </header>
+    `;
+  }
+}
+
+
+// AEM Edge Delivery Service Block
+export default async function decorate(block) {
+  try {
+    // Fetch logo and menu items from an API endpoint
+    const response = await fetch('/blocks/header/header.json');
+    const data = await response.json();
+
+    // Pass fetched logo and menu items to the Preact component
+    const app = html`<${DynamicHeader} logo=${data.logo} menuItems=${data.menuItems} />`;
+    render(app, block);
+  } catch (error) {
+    // Handle fetch error
+    const errorMessage = html`<div>Error: Failed to load header items.</div>`;
+    render(errorMessage, block);
+  }
 }
