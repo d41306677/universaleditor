@@ -1,9 +1,9 @@
 {
-  "logo": {
-    "link": "https://example.com",
-    "image": "https://example.com/logo.png",
-    "alt": "Company Logo"
-  },
+    "logo": {
+      "link": "https://www.devry.edu/",
+      "image": "https://www.devry.edu/content/dam/devry_edu/svg/graphics/outlined/devry-edu/headerlogos/large/Header-Logo-DeVryEdu-Large.svg",
+      "alt": "Company Logo"
+    },
   "menuItems": [
     {
       "text": "Home",
